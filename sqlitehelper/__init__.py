@@ -77,10 +77,10 @@ class SH_sub:
 	@property
 	def Name(self): return self._name
 
-	def select(self, cols, where, vals=None, order=None):
+	def select(self, cols, where=None, vals=None, order=None):
 		return self._select(self.Name, cols, where, vals, order)
 
-	def select_one(self, cols, where, vals=None):
+	def select_one(self, cols, where=None, vals=None):
 		return self._select_one(self.Name, cols, where, vals)
 
 	def insert(self, **cols):
@@ -88,6 +88,9 @@ class SH_sub:
 
 	def update(self, where, vals):
 		return self._update(self.Name, where, vals)
+
+	def delete(self, where, vals):
+		return self._delete(self.Name, where, vals)
 
 class SH:
 	"""
@@ -214,7 +217,7 @@ class SH:
 			res = self.DB.execute(sql, vals)
 		return res
 
-	def select(self, tname, cols, where, vals=None, order=None):
+	def select(self, tname, cols, where=None, vals=None, order=None):
 		# Assume nothing needs to be passed
 		if vals is None:
 			vals = []
@@ -288,8 +291,19 @@ class SH:
 
 		return self.execute(sql, s_vals + w_vals)
 
-	def delete(self, tname, where):
-		pass
+	def delete(self, tname, where, vals):
+		w_cols = []
+		w_vals = []
+
+		for k,v in where.items():
+			w_cols.append('`%s`=?' % k)
+			w_vals.append(v)
+
+		w = ",".join(w_cols)
+
+		sql = "DELETE FROM `%s` WHERE %s" % (tname, w)
+
+		return self.execute(sql, vals)
 
 
 
