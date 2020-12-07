@@ -108,6 +108,10 @@ class SH:
 		if 'json' not in cons:
 			sqlite3.register_converter("json", lambda txt: json.loads(txt))
 
+		if 'bool' not in cons:
+			sqlite3.register_adapter(bool, lambda x: int(x))
+			sqlite3.register_converter("bool", lambda x: bool(int(x)))
+
 		if hasattr(self, '__schema__'):
 			for o in self.__schema__:
 				if hasattr(self, o.Name):
