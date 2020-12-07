@@ -104,6 +104,11 @@ The basic functions are:
 		WHERE: A string basically as you would type in sqlite3 that can include all sqlite operators
 		VALUES: For each ? in the WHERE, provide it as an iterable here
 
+	select_one(TABLE_NAME, COLUMNS, WHERE, VALUES)
+
+		Identical to select() except fetchone() is called for you and returned.
+		Convenience function.
+
 	insert(TABLE_NAME, **columns)
 
 		TABLE_NAME: a string containing the table name to select from
@@ -122,4 +127,50 @@ The basic functions are:
 		VALUES: For each ? in the WHERE, provide it as an iterable here
 
 These functions are a little bit different in terms of style in how to pass arguments, but...that's what I picked. Deal with it?
+
+The return value from these are whatever sqlite3 returns, so operate on it as you would normally (eg, fetchall(), fetchone()).
+One change from defaul sqlite3 use is that the row factory automatically uses the sqlite3.Row row factory (row is indexable by column name).
+
+Other functions:
+
+	open()
+
+		Opens the database
+
+	close()
+
+		Closes the database
+
+	MakeDatabaseSchema()
+
+		Uses __schema__ and creates the database schema (create table, etc) as outlined.
+
+	begin()
+
+		Begins a transaction.
+
+	commit()
+
+		Commits a transaction.
+
+	rollback()
+
+		Rollback a transcation.
+
+=== Debugging ===
+
+To get raw SQL queries:
+
+	import logging
+	logging.basicConfig(level=logging.DEBUG)
+
+Each generated query is logged as a debug message.
+
+=== Future ===
+
+As you can tell, this is a fairly simple wrapper that provides a little more easy of use functionality over the sqlite3 library.
+It doesn't include fancy stuff like joins, indices, and other neat stuff, but this is intended to be a simple wrapper.
+Expansion to include some of these things would be pretty easy to do, I just don't want to make it overly-built, clunky, and burdensome to use.
+
+I will add features as I want them, basically.
 
