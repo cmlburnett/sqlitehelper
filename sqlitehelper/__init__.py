@@ -1,3 +1,12 @@
+"""
+sqlitehelper -- helper library for sqlite3
+
+SH is the primary class that is used.
+Subclassing SH and adding a __schema__ list of DBTable objects permit creation of the DB schema.
+See README for further details of an example
+
+For SQL queries used, set the logging library level to DEBUG.
+"""
 
 import sqlite3
 import logging
@@ -13,6 +22,8 @@ __all__ = ['SH', 'DBTable', 'DBCol', 'DBColROWID']
 class DBTable:
 	"""
 	Represents a database table of DBCol columns.
+	Create in a list of __schema__ in subclass of SH.
+	Pass an number of DBCol objects to the constructor to add columns.
 	"""
 
 	def __init__(self, name, *cols):
@@ -27,6 +38,10 @@ class DBTable:
 
 	@property
 	def SQL(self):
+		"""
+		Returns the SQL neede to generate this table.
+		"""
+
 		cols = [_.SQL for _ in self.Cols]
 
 		cols = ",".join(cols)
@@ -35,6 +50,8 @@ class DBTable:
 class DBCol:
 	"""
 	Represents a database column.
+	Pass any number of these to DBTable to define the columns of the table.
+	The sqlite type is passed as a string to @typ (eg, "text", "integer").
 	"""
 
 	def __init__(self, name, typ):
@@ -49,19 +66,35 @@ class DBCol:
 
 	@property
 	def SQL(self):
+		"""
+		Returns the SQL used in CREATE TABLE for this column.
+		"""
+
 		return "`%s` %s" % (self.Name, self.Typ)
 
 class DBColROWID(DBCol):
+	"""
+	Special DBCol object that permits renaming the default primary key in sqlite from rowid to anything.
+	Inclusion of this in the DBTable constructor without providing an alternate name has implications in sqlite.
+	As there is always a primary key, explicit inclusion means the rowid is returned in SELECT * queries.
+	"""
 	def __init__(self, name='rowid'):
 		super().__init__(name, 'integer')
 	
 	@property
 	def SQL(self):
+		"""
+		Returns the SQL used in CREATE TABLE for this column.
+		Defining the primary key requires an extra couple keywords in the CREATE TABLE statement.
+		"""
+
 		return super().SQL + " primary key"
+
 
 class SH_sub:
 	"""
-	Sub class for SH that permits object like access to SH classes to select tables.
+	Utility sub class for SH that permits object like access to SH classes to select tables.
+	Can subclass this and provide the class object to the SH constructor to provide an alternate template for these objects.
 	"""
 
 	def __init__(self, name, ex, sel, sel_one, ins, up, dlt):
@@ -98,32 +131,40 @@ class SH:
 	Does basics for handling select, insert, update, and delete functions to reduce need to write SQL everywhere.
 	"""
 
-	def __init__(self, fname):
+	def __init__(self, fname, sub_constructor=SH_sub):
 		self._fname = fname
 		self._db = None
+		self._sub_cls = sub_constructor
 
 		# Get converters and register one for datetime.datetime & json
 		cons = [_.lower() for _ in sqlite3.converters]
+
+		# datetime objects are stored pretty much in full as ASCII strings
 		if 'datetime' not in cons:
 			sqlite3.register_adapter(datetime.datetime, lambda dt: dt.strftime("%Y-%m-%d %H:%M:%S.%f").encode('ascii'))
 			sqlite3.register_converter("datetime", lambda txt: datetime.datetime.strptime(txt.decode('ascii'), "%Y-%m-%d %H:%M:%S.%f"))
 
+		# As strings representing JSON are still just str() objects, no adapter can be defined
 		if 'json' not in cons:
 			sqlite3.register_converter("json", lambda txt: json.loads(txt))
 
+		# bool is stored as 0/1 in sqlite, so just provide the type conversion
 		if 'bool' not in cons:
 			sqlite3.register_adapter(bool, lambda x: int(x))
 			sqlite3.register_converter("bool", lambda x: bool(int(x)))
 
+		# For exach DBTable, add an object to this object that wraps the table name to reduce parameter bloat when using this library
+		# Ie: db.employee.select("*") is the same as db.select("employee", "*")
 		if hasattr(self, '__schema__'):
 			for o in self.__schema__:
 				if hasattr(self, o.Name):
+					# Prefix with db_ is table name is already chosen (eg, select, insert)
 					if hasattr(self, 'db_' + o.Name):
 						raise Exception("Object has both %s and db_%s, cannot assign SH_sub object" % (o.Name, o.Name))
 					else:
 						setattr(self, 'db_' + o.Name, SH_sub(o.Name, self.execute, self.select, self.select_one, self.insert, self.update, self.delete))
 				else:
-					setattr(self, o.Name, SH_sub(o.Name, self.execute, self.select, self.select_one, self.insert, self.update, self.delete))
+					setattr(self, o.Name, self._sub_cls(o.Name, self.execute, self.select, self.select_one, self.insert, self.update, self.delete))
 
 		# No transaction to start
 		self._cursor = None
@@ -138,6 +179,8 @@ class SH:
 	def open(self, rowfactory=None):
 		"""
 		Opens the database connection.
+		Can provide ":memory:" to use sqlite's ability to use a database in memory (or anything else it accepts).
+		Can override this function to call MakeDatabaseSchema if file doesn't exist.
 		"""
 
 		if self.DB:
@@ -184,6 +227,10 @@ class SH:
 
 
 	def begin(self):
+		"""
+		Begin a transaction.
+		"""
+
 		if self._cursor is None:
 			logging.debug("SH: BEGIN")
 			self._cursor = self._db.cursor()
@@ -191,6 +238,10 @@ class SH:
 			raise Exception("Already in a transaction")
 
 	def commit(self):
+		"""
+		Commit a transaction.
+		"""
+
 		if self._cursor is None:
 			pass
 		else:
@@ -199,6 +250,10 @@ class SH:
 			self._cursor = None
 
 	def rollback(self):
+		"""
+		Rollback a transaction.
+		"""
+
 		if self._cursor is None:
 			pass
 		else:
@@ -209,7 +264,12 @@ class SH:
 
 
 	def execute(self, sql, vals=None):
+		"""
+		Execute any SQL statement desired with @vals as the iterable container of python values corresponding to ? parameter values in the SQL statement.
+		"""
+
 		if vals is None:
+			# No parameters
 			logging.debug("SH: SQL: %s ()" % (sql,))
 			res = self.DB.execute(sql)
 		else:
@@ -218,6 +278,16 @@ class SH:
 		return res
 
 	def select(self, tname, cols, where=None, vals=None, order=None):
+		"""
+		SELECT statement to retrieve information.
+
+		@tname is a string representing the table name to select from
+		@cols is a string or list selecting columns to return. An empty string or "*" return all columns.
+		@where is a string eseentially a SQL where clause (eg, "`rowid`=?", "`rowid` in (?)")
+		@vals is an iterable container of python values to be substituted into ? parameters in the query
+		@order is a string used to sort the returned results (eg, "`lname` asc, `fname` asc")
+		"""
+
 		# Assume nothing needs to be passed
 		if vals is None:
 			vals = []
@@ -247,11 +317,24 @@ class SH:
 
 		return self.execute(sql, vals)
 
-	def select_one(self, tname, cols, where, vals=None):
-		res = self.select(tname, cols, where, vals)
+	def select_one(self, tname, cols, where, vals=None, order=None):
+		"""
+		Identical to select() except fetchone() is called to return the first result.
+		"""
+
+		res = self.select(tname, cols, where, vals, order)
 		return res.fetchone()
 
 	def insert(self, tname, **cols):
+		"""
+		INSERT statement to add new information.
+
+		@tname is a string representing the table name to select from
+		@cols is a kwargs style passing of columns and values
+
+		All values are ultimately passed in using ? style parameters
+		"""
+
 		names = []
 		vals = []
 
@@ -270,6 +353,16 @@ class SH:
 		self.execute(sql, vals)
 
 	def update(self, tname, where, vals):
+		"""
+		UPDATE statement to alter infromation.
+
+		@tname is a string representing the table name to select from
+		@where is a dictionary of column name/value pairs to limit which rows are updated (ie, the WHERE clause)
+		@vals is a dictionary of column name/value pairs to update matched rows to (ie, the SET clause)
+
+		All values are ultimately passed in using ? style parameters
+		"""
+
 		s_cols = []
 		s_vals = []
 
@@ -292,6 +385,14 @@ class SH:
 		return self.execute(sql, s_vals + w_vals)
 
 	def delete(self, tname, where, vals):
+		"""
+		DELETE statement to remove information
+
+		@tname is a string representing the table name to select from
+		@where is a dictionary of column name/value pairs to limit which rows are updated (ie, the WHERE clause)
+		@vals is additional parameters used if @where values are "?"
+		"""
+
 		w_cols = []
 		w_vals = []
 
