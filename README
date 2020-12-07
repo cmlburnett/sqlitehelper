@@ -1,6 +1,11 @@
 sqlitehelper is a simple python 3 library to do some basic boiler plate stuff for a project.
 
-Quick example:
+=== Install ===
+Straight forward to install:
+
+	sudo python setup.py install
+
+=== Quick example ===
 
 	import datetime
 	import os.path
@@ -69,4 +74,52 @@ Quick example:
 
 This creates a database with two tables and some columns on them of different types.
 Note that both datetime.datetime and bool objects are handled by this library with appropriate converters and adapters.
+
+	Current employees: Bob,Ethyl,John
+	Awesome employee: Ethyl
+	Awesome employee: Bob
+	Decidedly NOT awesome employee: John
+	Current employees: Bob,Ethyl
+	----------------
+	Address I want to visit: 1600 Pennsylvania Ave, Washington, USA; been there 5 times
+	Address I want to visit: 10 Downing Street, London, England; been there 0 times
+	Go visit all of Europe
+	Address I want to visit: 1600 Pennsylvania Ave, Washington, USA; been there 5 times
+	Address I want to visit: 10 Downing Street, London, England; been there 1 times
+
+=== Internals ===
+
+Subclassing sqlitehelper.SH to include a schema is not necessary, but makes life a little easier for small projects.
+Pass the filename to SH() and call open() to create/open the file.
+Invoke MakeDatabaseSchema() to utilize the list of DBTable objects in __schema__ to create the schema.
+This schema is also inspected and objects are added to the instance named after each table (eg, employee & address as shown above).
+This reduces the need to pass the table name when calling select, insert, update, and delete.
+
+The basic functions are:
+
+	select(TABLE_NAME, COLUMNS, WHERE, VALUES)
+
+		TABLE_NAME: a string containing the table name to select from
+		COLUMNS: "" and "*" will retrieve all columns, otherwise a list of strings indicating column names
+		WHERE: A string basically as you would type in sqlite3 that can include all sqlite operators
+		VALUES: For each ? in the WHERE, provide it as an iterable here
+
+	insert(TABLE_NAME, **columns)
+
+		TABLE_NAME: a string containing the table name to select from
+		**columns: a kwargs style named parameter passing of columns
+
+	update(TABLE_NAME, WHERE, VALUES)
+
+		TABLE_NAME: a string containing the table name to select from
+		WHERE: a dictionary of column names and values to condition the update against
+		VALUES: a dictionary of columns & values to update matching rows to
+
+	delete(TABLE_NAME, WHERE, VALUES)
+
+		TABLE_NAME: a string containing the table name to select from
+		WHERE: a dictionary of column names and values to delete
+		VALUES: For each ? in the WHERE, provide it as an iterable here
+
+These functions are a little bit different in terms of style in how to pass arguments, but...that's what I picked. Deal with it?
 
