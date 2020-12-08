@@ -7,6 +7,8 @@ Straight forward to install:
 
 === Quick example ===
 
+Example from test/employee.py
+
 	import datetime
 	import os.path
 	from sqlitehelper import SH,DBTable,DBCol
