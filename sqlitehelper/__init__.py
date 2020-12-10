@@ -122,8 +122,8 @@ class SH_sub:
 	def update(self, where, vals):
 		return self._update(self.Name, where, vals)
 
-	def delete(self, where, vals):
-		return self._delete(self.Name, where, vals)
+	def delete(self, where):
+		return self._delete(self.Name, where)
 
 class SH:
 	"""
@@ -156,6 +156,9 @@ class SH:
 		# For exach DBTable, add an object to this object that wraps the table name to reduce parameter bloat when using this library
 		# Ie: db.employee.select("*") is the same as db.select("employee", "*")
 		if hasattr(self, '__schema__'):
+			# TODO: Check for duplicate DBTable.Name amongst the list
+			# TODO: Check for duplicate DBCol.Name within a table
+			# TODO: Check that there's only, at most, one DBColROWID
 			for o in self.__schema__:
 				if hasattr(self, o.Name):
 					# Prefix with db_ is table name is already chosen (eg, select, insert)
@@ -358,7 +361,9 @@ class SH:
 
 		@tname is a string representing the table name to select from
 		@where is a dictionary of column name/value pairs to limit which rows are updated (ie, the WHERE clause)
+			{"rowid": 10, 'name': 'John'} -> "`rowid`=? AND `name`=?" and [10,'John'] are passed as values to execute()
 		@vals is a dictionary of column name/value pairs to update matched rows to (ie, the SET clause)
+			{"age": 20, "height": 70} -> "`age`=?, `height`=?" and [20, 70] are passed as values to execute()
 
 		All values are ultimately passed in using ? style parameters
 		"""
@@ -377,20 +382,20 @@ class SH:
 			w_cols.append('`%s`=?' % k)
 			w_vals.append(v)
 
-		s = ",".join(s_cols)
+		s = " AND ".join(s_cols)
 		w = ",".join(w_cols)
 
 		sql = "UPDATE `%s` SET %s WHERE %s" % (tname, s, w)
 
 		return self.execute(sql, s_vals + w_vals)
 
-	def delete(self, tname, where, vals):
+	def delete(self, tname, where):
 		"""
 		DELETE statement to remove information
 
 		@tname is a string representing the table name to select from
 		@where is a dictionary of column name/value pairs to limit which rows are updated (ie, the WHERE clause)
-		@vals is additional parameters used if @where values are "?"
+			{"rowid": 10, 'name': 'John'} -> "`rowid`=? AND `name`=?" and [10,'John'] are passed as values to execute()
 		"""
 
 		w_cols = []
@@ -400,11 +405,11 @@ class SH:
 			w_cols.append('`%s`=?' % k)
 			w_vals.append(v)
 
-		w = ",".join(w_cols)
+		w = " AND ".join(w_cols)
 
 		sql = "DELETE FROM `%s` WHERE %s" % (tname, w)
 
-		return self.execute(sql, vals)
+		return self.execute(sql, w_vals)
 
 
 

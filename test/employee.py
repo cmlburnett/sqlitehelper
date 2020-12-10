@@ -45,7 +45,7 @@ if __name__ == '__main__':
 	for e in db.employee.select(['rowid','name'], '`awesome`=?', [False]):
 		print("Decidedly NOT awesome employee: %s" % e['name'])
 		# Get rid of that employee
-		db.employee.delete({'rowid': '?'}, [e['rowid']])
+		db.employee.delete({'rowid': e['rowid']})
 
 	print("Current employees: %s" % (",".join( sorted([_['name'] for _ in db.employee.select("name")]) )))
 
