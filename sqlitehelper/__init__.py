@@ -355,7 +355,7 @@ class SH:
 
 		self.execute(sql, vals)
 
-	def update(self, tname, where, vals):
+	def update(self, tname, where, vals, joiner='AND'):
 		"""
 		UPDATE statement to alter infromation.
 
@@ -382,14 +382,20 @@ class SH:
 			w_cols.append('`%s`=?' % k)
 			w_vals.append(v)
 
-		s = " AND ".join(s_cols)
+		if joiner.strip().lower() == 'and':
+			s = " AND ".join(s_cols)
+		elif joiner.strip().lower() == 'or':
+			s = " OR ".join(s_cols)
+		else:
+			raise ValueError("joiner parameter must be AND or OR")
+
 		w = ",".join(w_cols)
 
 		sql = "UPDATE `%s` SET %s WHERE %s" % (tname, s, w)
 
 		return self.execute(sql, s_vals + w_vals)
 
-	def delete(self, tname, where):
+	def delete(self, tname, where, joiner='AND'):
 		"""
 		DELETE statement to remove information
 
@@ -405,11 +411,14 @@ class SH:
 			w_cols.append('`%s`=?' % k)
 			w_vals.append(v)
 
-		w = " AND ".join(w_cols)
+		if joiner.strip().lower() == 'and':
+			w = " AND ".join(w_cols)
+		elif joiner.strip().lower() == 'or':
+			w = " OR ".join(w_cols)
+		else:
+			raise ValueError("joiner parameter must be AND or OR")
 
 		sql = "DELETE FROM `%s` WHERE %s" % (tname, w)
 
 		return self.execute(sql, w_vals)
-
-
 
