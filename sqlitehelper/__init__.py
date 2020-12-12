@@ -374,22 +374,24 @@ class SH:
 		w_cols = []
 		w_vals = []
 
+		# SET clause
 		for k,v in vals.items():
 			s_cols.append('`%s`=?' % k)
 			s_vals.append(v)
 
+		# WHERE clause
 		for k,v in where.items():
 			w_cols.append('`%s`=?' % k)
 			w_vals.append(v)
 
 		if joiner.strip().lower() == 'and':
-			s = " AND ".join(s_cols)
+			w = " AND ".join(w_cols)
 		elif joiner.strip().lower() == 'or':
-			s = " OR ".join(s_cols)
+			w = " OR ".join(w_cols)
 		else:
 			raise ValueError("joiner parameter must be AND or OR")
 
-		w = ",".join(w_cols)
+		s = ",".join(s_cols)
 
 		sql = "UPDATE `%s` SET %s WHERE %s" % (tname, s, w)
 
