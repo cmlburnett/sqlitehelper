@@ -434,7 +434,7 @@ class SH:
 		If a where clause is provided, then use that to limit the rows.
 		"""
 
-		sql = "SELECT count(*) as `count` FROM `%s`"
+		sql = "SELECT count(*) as `count` FROM `%s`" % tname
 
 		if where:
 			sql += " WHERE %s" % where
