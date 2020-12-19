@@ -97,7 +97,7 @@ class SH_sub:
 	Can subclass this and provide the class object to the SH constructor to provide an alternate template for these objects.
 	"""
 
-	def __init__(self, name, ex, sel, sel_one, ins, up, dlt):
+	def __init__(self, name, ex, sel, sel_one, ins, up, dlt, num):
 		self._name = name
 
 		self._execute = ex
@@ -106,6 +106,7 @@ class SH_sub:
 		self._insert = ins
 		self._update = up
 		self._delete = dlt
+		self._num_rows = num
 
 	@property
 	def Name(self): return self._name
@@ -124,6 +125,9 @@ class SH_sub:
 
 	def delete(self, where):
 		return self._delete(self.Name, where)
+
+	def num_rows(self, where=None):
+		return self._num_rows(self.Name, where)
 
 class SH:
 	"""
@@ -165,9 +169,9 @@ class SH:
 					if hasattr(self, 'db_' + o.Name):
 						raise Exception("Object has both %s and db_%s, cannot assign SH_sub object" % (o.Name, o.Name))
 					else:
-						setattr(self, 'db_' + o.Name, SH_sub(o.Name, self.execute, self.select, self.select_one, self.insert, self.update, self.delete))
+						setattr(self, 'db_' + o.Name, SH_sub(o.Name, self.execute, self.select, self.select_one, self.insert, self.update, self.delete, self.num_rows))
 				else:
-					setattr(self, o.Name, self._sub_cls(o.Name, self.execute, self.select, self.select_one, self.insert, self.update, self.delete))
+					setattr(self, o.Name, self._sub_cls(o.Name, self.execute, self.select, self.select_one, self.insert, self.update, self.delete, self.num_rows))
 
 		# No transaction to start
 		self._cursor = None
@@ -423,4 +427,18 @@ class SH:
 		sql = "DELETE FROM `%s` WHERE %s" % (tname, w)
 
 		return self.execute(sql, w_vals)
+
+	def num_rows(self, tname, where=None):
+		"""
+		Do a fancy select to get the number of rows.
+		If a where clause is provided, then use that to limit the rows.
+		"""
+
+		sql = "SELECT count(*) as `count` FROM `%s`"
+
+		if where:
+			sql += " WHERE %s" % where
+
+		res = self.execute(sql)
+		return res.fetchone()['count']
 
