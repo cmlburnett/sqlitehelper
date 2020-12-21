@@ -10,6 +10,7 @@ For SQL queries used, set the logging library level to DEBUG.
 
 import sqlite3
 import logging
+import time
 
 # For converters/adapters
 import datetime
@@ -276,13 +277,29 @@ class SH:
 		"""
 
 		if vals is None:
-			# No parameters
 			logging.debug("SH: SQL: %s ()" % (sql,))
-			res = self.DB.execute(sql)
+			vals = tuple()
 		else:
 			logging.debug("SH: SQL: %s %s" % (sql, vals))
-			res = self.DB.execute(sql, vals)
-		return res
+
+		return self._execute(sql, vals)
+
+	def _execute(self, sql, vals):
+		# Try up to 10 times if locked (probably from another process)
+		cnt = 0
+		while cnt < 10:
+			try:
+				return self.DB.execute(sql, vals)
+			except sqlite3.OperationalError as e:
+				if 'database is locked' in e.args[0]:
+					logging.error("Locked database count %d" % cnt)
+
+					time.sleep(cnt)
+					cnt += 1
+					continue
+				else:
+					# Some other error
+					raise
 
 	def select(self, tname, cols, where=None, vals=None, order=None):
 		"""
