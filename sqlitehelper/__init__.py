@@ -185,7 +185,8 @@ class SH:
 
 
 	def reopen(self):
-		self.close()
+		#self.close()
+		self.DB = None
 		self.open(self._rowfact)
 
 	def open(self, rowfactory=None):
