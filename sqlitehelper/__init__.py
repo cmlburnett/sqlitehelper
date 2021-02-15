@@ -136,10 +136,12 @@ class SH:
 	Does basics for handling select, insert, update, and delete functions to reduce need to write SQL everywhere.
 	"""
 
+
 	def __init__(self, fname, sub_constructor=SH_sub):
 		self._fname = fname
 		self._db = None
 		self._sub_cls = sub_constructor
+		self._rowfact = None
 
 		# Get converters and register one for datetime.datetime & json
 		cons = [_.lower() for _ in sqlite3.converters]
@@ -195,6 +197,9 @@ class SH:
 		Can provide ":memory:" to use sqlite's ability to use a database in memory (or anything else it accepts).
 		Can override this function to call MakeDatabaseSchema if file doesn't exist.
 		"""
+
+		# Store in case reopen() is called
+		self._rowfact = rowfactory
 
 		if self.DB:
 			raise Exception("Already opened to database '%s'" % self.Filename)
