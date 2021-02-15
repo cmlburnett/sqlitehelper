@@ -184,6 +184,10 @@ class SH:
 	def DB(self): return self._db
 
 
+	def reopen(self):
+		self.close()
+		self.open(self._rowfact)
+
 	def open(self, rowfactory=None):
 		"""
 		Opens the database connection.
