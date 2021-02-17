@@ -127,8 +127,8 @@ class SH_sub:
 	def delete(self, where):
 		return self._delete(self.Name, where)
 
-	def num_rows(self, where=None):
-		return self._num_rows(self.Name, where)
+	def num_rows(self, where=None, vals=None):
+		return self._num_rows(self.Name, where, vals)
 
 class SH:
 	"""
@@ -457,7 +457,7 @@ class SH:
 
 		return self.execute(sql, w_vals)
 
-	def num_rows(self, tname, where=None):
+	def num_rows(self, tname, where=None, vals=None):
 		"""
 		Do a fancy select to get the number of rows.
 		If a where clause is provided, then use that to limit the rows.
@@ -468,6 +468,9 @@ class SH:
 		if where:
 			sql += " WHERE %s" % where
 
-		res = self.execute(sql)
+		if vals is None:
+			res = self.execute(sql)
+		else:
+			res = self.execute(sql, vals)
 		return res.fetchone()['count']
 
