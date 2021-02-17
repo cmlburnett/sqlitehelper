@@ -384,7 +384,9 @@ class SH:
 		# Format SQL
 		sql = "INSERT INTO `%s` (%s) VALUES (%s)" % (tname,cols,vnames)
 
-		self.execute(sql, vals)
+		res = self.execute(sql, vals)
+
+		return res.lastrowid
 
 	def update(self, tname, where, vals, joiner='AND'):
 		"""
