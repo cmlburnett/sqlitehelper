@@ -235,7 +235,7 @@ class SH:
 			raise Exception("Class %s doesn't have __schema__ attribute")
 
 		for o in self.__schema__:
-			if type(o) is DBTable:
+			if isinstance(o, DBTable):
 				self.begin()
 				self.execute(o.SQL)
 				self.commit()
