@@ -17,7 +17,7 @@ import datetime
 import json
 
 
-__all__ = ['SH', 'DBTable', 'DBCol', 'DBColROWID']
+__all__ = ['SH', 'DBTable', 'DBCol', 'DBColUnique', 'DBColROWID']
 
 
 class DBTable:
@@ -58,6 +58,7 @@ class DBCol:
 	def __init__(self, name, typ):
 		self._name = name
 		self._typ = typ
+		self._unique = False
 
 	@property
 	def Name(self): return self._name
@@ -66,12 +67,27 @@ class DBCol:
 	def Typ(self): return self._typ
 
 	@property
+	def IsUnique(self): return self._unique
+
+	@property
 	def SQL(self):
 		"""
 		Returns the SQL used in CREATE TABLE for this column.
 		"""
 
+		# TODO: add something for handling the unique foreign key constraint
 		return "`%s` %s" % (self.Name, self.Typ)
+
+class DBColUnique(DBCol):
+	"""
+	Represents a database column that should have unique values.
+	Pass any number of these to DBTable to define the columns of the table.
+	The sqlite type is passed as a string to @typ (eg, "text", "integer").
+	"""
+
+	def __init__(self, name, typ):
+		super().__init__(name, typ)
+		self._unique = True
 
 class DBColROWID(DBCol):
 	"""
@@ -98,8 +114,10 @@ class SH_sub:
 	Can subclass this and provide the class object to the SH constructor to provide an alternate template for these objects.
 	"""
 
-	def __init__(self, name, ex, sel, sel_one, ins, up, dlt, num):
-		self._name = name
+	def __init__(self, schema, ex, sel, sel_one, ins, up, dlt, num):
+
+		self._schema = schema
+		self._name = schema.Name
 
 		self._execute = ex
 		self._select = sel
@@ -108,6 +126,46 @@ class SH_sub:
 		self._update = up
 		self._delete = dlt
 		self._num_rows = num
+
+		# Find primary key column
+		pkey = None
+		for col in schema.Cols:
+			if isinstance(col, DBColROWID):
+				pkey = col
+
+		# Only create these functions if there's a primary key (what would they return otherwise?)
+		if pkey is not None:
+			def rowidorempty(res):
+				if res is None:
+					return []
+				else:
+					return [_['rowid'] for _ in res]
+			def rowidornone(res):
+				if res is None:
+					return None
+				else:
+					return res['rowid']
+
+			def getbycolumn(self, k):
+				def _(v):
+					return rowidorempty(self.select('*', '`%s`=?' % k, [v]))
+				return _
+
+			def getbycolumnunique(self, k):
+				def _(v):
+					return rowidornone(self.select_one('*', '`%s`=?' % k, [v]))
+				return _
+
+			for col in schema.Cols:
+				if isinstance(col, DBColROWID):
+					self.GetById = lambda rowid: self.select_one('*', '`%s`=?' % col.Name, [rowid])
+				else:
+					fname = 'GetBy' + col.Name
+					#setattr(self, fname, lambda _: rowidorempty(self.select(pkey.Name, '`%s`=?' % col.Name, [_])))
+					if col.IsUnique:
+						setattr(self, fname, getbycolumnunique(self, col.Name))
+					else:
+						setattr(self, fname, getbycolumn(self, col.Name))
 
 	@property
 	def Name(self): return self._name
@@ -172,9 +230,9 @@ class SH:
 					if hasattr(self, 'db_' + o.Name):
 						raise Exception("Object has both %s and db_%s, cannot assign SH_sub object" % (o.Name, o.Name))
 					else:
-						setattr(self, 'db_' + o.Name, SH_sub(o.Name, self.execute, self.select, self.select_one, self.insert, self.update, self.delete, self.num_rows))
+						setattr(self, 'db_' + o.Name, SH_sub(o, self.execute, self.select, self.select_one, self.insert, self.update, self.delete, self.num_rows))
 				else:
-					setattr(self, o.Name, self._sub_cls(o.Name, self.execute, self.select, self.select_one, self.insert, self.update, self.delete, self.num_rows))
+					setattr(self, o.Name, self._sub_cls(o, self.execute, self.select, self.select_one, self.insert, self.update, self.delete, self.num_rows))
 
 		# No transaction to start
 		self._cursor = None
