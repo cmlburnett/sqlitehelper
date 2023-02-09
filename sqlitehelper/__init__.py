@@ -135,33 +135,45 @@ class SH_sub:
 
 		# Only create these functions if there's a primary key (what would they return otherwise?)
 		if pkey is not None:
+			# This is for non-unique columns since it can return multiple results
 			def rowidorempty(res):
 				if res is None:
 					return []
 				else:
 					return [_['rowid'] for _ in res]
+
+			# This is for unique columns since it should return only one result
 			def rowidornone(res):
 				if res is None:
 					return None
 				else:
 					return res['rowid']
 
+			# Have to do this for the late binding in python
+			# This is for non-unique columns
 			def getbycolumn(self, k):
 				def _(v):
 					return rowidorempty(self.select('*', '`%s`=?' % k, [v]))
 				return _
 
+			# This is for unique columns
 			def getbycolumnunique(self, k):
 				def _(v):
 					return rowidornone(self.select_one('*', '`%s`=?' % k, [v]))
 				return _
 
+			# Create GetBy* function for each column
+			# If you don't want this function then delete in the sub-class constructor of SH
+			# after invoking super().__init__
 			for col in schema.Cols:
+				# Special GetById for the primary key
 				if isinstance(col, DBColROWID):
 					self.GetById = lambda rowid: self.select_one('*', '`%s`=?' % col.Name, [rowid])
 				else:
+					# Shouldn't have much trouble with function name requirements of python and column
+					# name requirements in sqlite.
+					# TODO: Could get in trouble though since they don't exactly match up
 					fname = 'GetBy' + col.Name
-					#setattr(self, fname, lambda _: rowidorempty(self.select(pkey.Name, '`%s`=?' % col.Name, [_])))
 					if col.IsUnique:
 						setattr(self, fname, getbycolumnunique(self, col.Name))
 					else:
