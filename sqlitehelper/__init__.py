@@ -149,17 +149,31 @@ class SH_sub:
 				else:
 					return res['rowid']
 
+			# This is for unique columns since it should return only one result
+			def dictornone(res):
+				if res is None:
+					return None
+				else:
+					return dict(res)
+
 			# Have to do this for the late binding in python
 			# This is for non-unique columns
 			def getbycolumn(self, k):
 				def _(v):
-					return rowidorempty(self.select('*', '`%s`=?' % k, [v]))
+					print(['getbycolumn', self, k, v])
+					return rowidorempty(self.select('rowid', '`%s`=?' % k, [v]))
 				return _
 
 			# This is for unique columns
 			def getbycolumnunique(self, k):
 				def _(v):
-					return rowidornone(self.select_one('*', '`%s`=?' % k, [v]))
+					return rowidornone(self.select_one('rowid', '`%s`=?' % k, [v]))
+				return _
+
+			# This is for GetById
+			def getbypkey(self, k):
+				def _(v):
+					return dictornone(self.select_one('*', '`%s`=?' % k, [v]))
 				return _
 
 			# Create GetBy* function for each column
@@ -168,7 +182,7 @@ class SH_sub:
 			for col in schema.Cols:
 				# Special GetById for the primary key
 				if isinstance(col, DBColROWID):
-					self.GetById = lambda rowid: self.select_one('*', '`%s`=?' % col.Name, [rowid])
+					setattr(self, 'GetById', getbypkey(self, 'rowid'))
 				else:
 					# Shouldn't have much trouble with function name requirements of python and column
 					# name requirements in sqlite.
