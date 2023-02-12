@@ -113,9 +113,13 @@ class SH_sub:
 	Utility sub class for SH that permits object like access to SH classes to select tables.
 	Can subclass this and provide the class object to the SH constructor to provide an alternate template for these objects.
 	"""
+	_name = None
 
-	def __init__(self, schema, ex, sel, sel_one, ins, up, dlt, num):
+	@property
+	def Name(self): return self._name
 
+	def __init__(self, db, schema, ex, sel, sel_one, ins, up, dlt, num):
+		self.db = db
 		self._schema = schema
 		self._name = schema.Name
 
@@ -193,9 +197,6 @@ class SH_sub:
 					else:
 						setattr(self, fname, getbycolumn(self, col.Name))
 
-	@property
-	def Name(self): return self._name
-
 	def select(self, cols, where=None, vals=None, order=None):
 		return self._select(self.Name, cols, where, vals, order)
 
@@ -220,7 +221,6 @@ class SH:
 	Does basics for handling select, insert, update, and delete functions to reduce need to write SQL everywhere.
 	"""
 
-
 	def __init__(self, fname, sub_constructor=SH_sub):
 		self._fname = fname
 		self._db = None
@@ -244,24 +244,45 @@ class SH:
 			sqlite3.register_adapter(bool, lambda x: int(x))
 			sqlite3.register_converter("bool", lambda x: bool(int(x)))
 
-		# For exach DBTable, add an object to this object that wraps the table name to reduce parameter bloat when using this library
-		# Ie: db.employee.select("*") is the same as db.select("employee", "*")
-		if hasattr(self, '__schema__'):
-			# TODO: Check for duplicate DBTable.Name amongst the list
-			# TODO: Check for duplicate DBCol.Name within a table
-			# TODO: Check that there's only, at most, one DBColROWID
-			for o in self.__schema__:
-				if hasattr(self, o.Name):
-					# Prefix with db_ is table name is already chosen (eg, select, insert)
-					if hasattr(self, 'db_' + o.Name):
-						raise Exception("Object has both %s and db_%s, cannot assign SH_sub object" % (o.Name, o.Name))
-					else:
-						setattr(self, 'db_' + o.Name, SH_sub(o, self.execute, self.select, self.select_one, self.insert, self.update, self.delete, self.num_rows))
-				else:
-					setattr(self, o.Name, self._sub_cls(o, self.execute, self.select, self.select_one, self.insert, self.update, self.delete, self.num_rows))
-
 		# No transaction to start
 		self._cursor = None
+
+		# Generate the SH_sub objects
+		self.GenerateSchema()
+
+	def GenerateSchema(self):
+		# For exach DBTable, add an object to this object that wraps the table name to reduce parameter bloat when using this library
+		# Ie: db.employee.select("*") is the same as db.select("employee", "*")
+		if not hasattr(self, '__schema__'):
+			return
+
+		# TODO: Check for duplicate DBTable.Name amongst the list
+		# TODO: Check for duplicate DBCol.Name within a table
+		# TODO: Check that there's only, at most, one DBColROWID
+		finalschema = []
+		for o in self.__schema__:
+			if isinstance(o, type):
+				subo = o(self, None, self.execute, self.select, self.select_one, self.insert, self.update, self.delete, self.num_rows)
+				setattr(self, subo.Name, subo)
+				finalschema.append( subo.BuildSchema() )
+
+
+			elif hasattr(self, o.Name):
+				# Prefix with db_ is table name is already chosen (eg, select, insert)
+				if hasattr(self, 'db_' + o.Name):
+					raise Exception("Object has both %s and db_%s, cannot assign SH_sub object" % (o.Name, o.Name))
+				else:
+					subo = SH_sub(self, o, self.execute, self.select, self.select_one, self.insert, self.update, self.delete, self.num_rows)
+					setattr(self, 'db_' + o.Name, subo)
+					finalschema.append(o)
+
+			else:
+				subo = self._sub_cls(self, o, self.execute, self.select, self.select_one, self.insert, self.update, self.delete, self.num_rows)
+				setattr(self, o.Name, subo)
+				finalschema.append(o)
+
+		self.__schema__.clear()
+		self.__schema__ += finalschema
 
 	@property
 	def Filename(self): return self._fname
