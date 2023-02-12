@@ -27,12 +27,12 @@ class DBTable:
 	Pass an number of DBCol objects to the constructor to add columns.
 	"""
 
-	def __init__(self, name, *cols):
-		self._name = name
+	def __init__(self, dbname, *cols):
+		self._dbname = dbname
 		self._cols = cols
 
 	@property
-	def Name(self): return self._name
+	def DBName(self): return self._dbname
 
 	@property
 	def Cols(self): return self._cols
@@ -46,7 +46,7 @@ class DBTable:
 		cols = [_.SQL for _ in self.Cols]
 
 		cols = ",".join(cols)
-		return "CREATE TABLE `%s` (%s)" % (self.Name, cols)
+		return "CREATE TABLE `%s` (%s)" % (self.DBName, cols)
 
 class DBCol:
 	"""
@@ -55,13 +55,13 @@ class DBCol:
 	The sqlite type is passed as a string to @typ (eg, "text", "integer").
 	"""
 
-	def __init__(self, name, typ):
-		self._name = name
+	def __init__(self, dbname, typ):
+		self._dbname = dbname
 		self._typ = typ
 		self._unique = False
 
 	@property
-	def Name(self): return self._name
+	def DBName(self): return self._dbname
 
 	@property
 	def Typ(self): return self._typ
@@ -76,7 +76,7 @@ class DBCol:
 		"""
 
 		# TODO: add something for handling the unique foreign key constraint
-		return "`%s` %s" % (self.Name, self.Typ)
+		return "`%s` %s" % (self.DBName, self.Typ)
 
 class DBColUnique(DBCol):
 	"""
@@ -113,15 +113,15 @@ class SH_sub:
 	Utility sub class for SH that permits object like access to SH classes to select tables.
 	Can subclass this and provide the class object to the SH constructor to provide an alternate template for these objects.
 	"""
-	_name = None
+	_dbname = None
 
 	@property
-	def Name(self): return self._name
+	def DBName(self): return self._dbname
 
 	def __init__(self, db, schema, ex, sel, sel_one, ins, up, dlt, num):
 		self.db = db
 		self._schema = schema
-		self._name = schema.Name
+		self._dbname = schema.DBName
 
 		self._execute = ex
 		self._select = sel
@@ -191,29 +191,29 @@ class SH_sub:
 					# Shouldn't have much trouble with function name requirements of python and column
 					# name requirements in sqlite.
 					# TODO: Could get in trouble though since they don't exactly match up
-					fname = 'GetBy' + col.Name
+					fname = 'GetBy' + col.DBName
 					if col.IsUnique:
-						setattr(self, fname, getbycolumnunique(self, col.Name))
+						setattr(self, fname, getbycolumnunique(self, col.DBName))
 					else:
-						setattr(self, fname, getbycolumn(self, col.Name))
+						setattr(self, fname, getbycolumn(self, col.DBName))
 
 	def select(self, cols, where=None, vals=None, order=None):
-		return self._select(self.Name, cols, where, vals, order)
+		return self._select(self.DBName, cols, where, vals, order)
 
 	def select_one(self, cols, where=None, vals=None):
-		return self._select_one(self.Name, cols, where, vals)
+		return self._select_one(self.DBName, cols, where, vals)
 
 	def insert(self, **cols):
-		return self._insert(self.Name, **cols)
+		return self._insert(self.DBName, **cols)
 
 	def update(self, where, vals):
-		return self._update(self.Name, where, vals)
+		return self._update(self.DBName, where, vals)
 
 	def delete(self, where):
-		return self._delete(self.Name, where)
+		return self._delete(self.DBName, where)
 
 	def num_rows(self, where=None, vals=None):
-		return self._num_rows(self.Name, where, vals)
+		return self._num_rows(self.DBName, where, vals)
 
 class SH:
 	"""
@@ -256,29 +256,29 @@ class SH:
 		if not hasattr(self, '__schema__'):
 			return
 
-		# TODO: Check for duplicate DBTable.Name amongst the list
-		# TODO: Check for duplicate DBCol.Name within a table
+		# TODO: Check for duplicate DBTable.DBName amongst the list
+		# TODO: Check for duplicate DBCol.DBName within a table
 		# TODO: Check that there's only, at most, one DBColROWID
 		finalschema = []
 		for o in self.__schema__:
 			if isinstance(o, type):
 				subo = o(self, None, self.execute, self.select, self.select_one, self.insert, self.update, self.delete, self.num_rows)
-				setattr(self, subo.Name, subo)
+				setattr(self, subo.DBName, subo)
 				finalschema.append( subo.BuildSchema() )
 
 
-			elif hasattr(self, o.Name):
+			elif hasattr(self, o.DBName):
 				# Prefix with db_ is table name is already chosen (eg, select, insert)
-				if hasattr(self, 'db_' + o.Name):
-					raise Exception("Object has both %s and db_%s, cannot assign SH_sub object" % (o.Name, o.Name))
+				if hasattr(self, 'db_' + o.DBName):
+					raise Exception("Object has both %s and db_%s, cannot assign SH_sub object" % (o.DBName, o.DBName))
 				else:
 					subo = SH_sub(self, o, self.execute, self.select, self.select_one, self.insert, self.update, self.delete, self.num_rows)
-					setattr(self, 'db_' + o.Name, subo)
+					setattr(self, 'db_' + o.DBName, subo)
 					finalschema.append(o)
 
 			else:
 				subo = self._sub_cls(self, o, self.execute, self.select, self.select_one, self.insert, self.update, self.delete, self.num_rows)
-				setattr(self, o.Name, subo)
+				setattr(self, o.DBName, subo)
 				finalschema.append(o)
 
 		self.__schema__.clear()
