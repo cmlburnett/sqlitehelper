@@ -165,7 +165,6 @@ class SH_sub:
 			# This is for non-unique columns
 			def getbycolumn(self, k):
 				def _(v):
-					print(['getbycolumn', self, k, v])
 					return rowidorempty(self.select('rowid', '`%s`=?' % k, [v]))
 				return _
 
