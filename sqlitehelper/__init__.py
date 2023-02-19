@@ -15,6 +15,7 @@ import time
 # For converters/adapters
 import datetime
 import json
+import uuid
 
 
 __all__ = ['SH', 'DBTable', 'DBCol', 'DBColUnique', 'DBColROWID']
@@ -197,6 +198,10 @@ class SH_sub:
 					else:
 						setattr(self, fname, getbycolumn(self, col.DBName))
 
+	def setup(self, db):
+		""" Called after all SH_sub classes are created."""
+		pass
+
 	def select(self, cols, where=None, vals=None, order=None):
 		return self._select(self.DBName, cols, where, vals, order)
 
@@ -221,6 +226,8 @@ class SH:
 	Does basics for handling select, insert, update, and delete functions to reduce need to write SQL everywhere.
 	"""
 
+	_objects = None
+
 	def __init__(self, fname, sub_constructor=SH_sub):
 		self._fname = fname
 		self._db = None
@@ -239,6 +246,11 @@ class SH:
 		if 'json' not in cons:
 			sqlite3.register_converter("json", lambda txt: json.loads(txt))
 
+		# uuid objects are stored as strings
+		if 'uuid' not in cons:
+			sqlite3.register_adapter(uuid.UUID, lambda u: str(u))
+			sqlite3.register_converter("uuid", lambda txt: uuid.UUID(txt.decode('ascii')))
+
 		# bool is stored as 0/1 in sqlite, so just provide the type conversion
 		if 'bool' not in cons:
 			sqlite3.register_adapter(bool, lambda x: int(x))
@@ -248,7 +260,11 @@ class SH:
 		self._cursor = None
 
 		# Generate the SH_sub objects
+		self._objects = []
 		self.GenerateSchema()
+
+		for o in self._objects:
+			o.setup(self)
 
 	def GenerateSchema(self):
 		# For exach DBTable, add an object to this object that wraps the table name to reduce parameter bloat when using this library
@@ -280,6 +296,8 @@ class SH:
 				subo = self._sub_cls(self, o, self.execute, self.select, self.select_one, self.insert, self.update, self.delete, self.num_rows)
 				setattr(self, o.DBName, subo)
 				finalschema.append(o)
+
+			self._objects.append(subo)
 
 		self.__schema__.clear()
 		self.__schema__ += finalschema
