@@ -359,7 +359,7 @@ class SH:
 		for o in self.__schema__:
 			if isinstance(o, DBTable):
 				self.begin()
-				self.execute(o.SQL)
+				self.execute(None, 'schema', o.SQL)
 				self.commit()
 			else:
 				raise TypeError("Unrecognized schema type '%s'" % type(o))
@@ -403,7 +403,7 @@ class SH:
 
 
 
-	def execute(self, sql, vals=None):
+	def execute(self, tname, cmd, sql, vals=None):
 		"""
 		Execute any SQL statement desired with @vals as the iterable container of python values corresponding to ? parameter values in the SQL statement.
 		"""
@@ -414,9 +414,9 @@ class SH:
 		else:
 			logging.debug("SH: SQL: %s %s" % (sql, vals))
 
-		return self._execute(sql, vals)
+		return self._execute(tname, cmd, sql, vals)
 
-	def _execute(self, sql, vals):
+	def _execute(self, tname, cmd, sql, vals):
 		# Try up to 10 times if locked (probably from another process)
 		cnt = 0
 		while cnt < 10:
@@ -471,7 +471,7 @@ class SH:
 		if order:
 			sql += " ORDER BY %s" % order
 
-		return self.execute(sql, vals)
+		return self.execute(tname, 'select', sql, vals)
 
 	def select_one(self, tname, cols, where, vals=None, order=None):
 		"""
@@ -506,7 +506,7 @@ class SH:
 		# Format SQL
 		sql = "INSERT INTO `%s` (%s) VALUES (%s)" % (tname,cols,vnames)
 
-		res = self.execute(sql, vals)
+		res = self.execute(tname, 'insert', sql, vals)
 
 		return res.lastrowid
 
@@ -550,7 +550,7 @@ class SH:
 
 		sql = "UPDATE `%s` SET %s WHERE %s" % (tname, s, w)
 
-		return self.execute(sql, s_vals + w_vals)
+		return self.execute(tname, 'update', sql, s_vals + w_vals)
 
 	def delete(self, tname, where, joiner='AND'):
 		"""
@@ -577,7 +577,7 @@ class SH:
 
 		sql = "DELETE FROM `%s` WHERE %s" % (tname, w)
 
-		return self.execute(sql, w_vals)
+		return self.execute(tname, 'delete', sql, w_vals)
 
 	def num_rows(self, tname, where=None, vals=None):
 		"""
@@ -591,8 +591,8 @@ class SH:
 			sql += " WHERE %s" % where
 
 		if vals is None:
-			res = self.execute(sql)
+			res = self.execute(tname, 'select', sql)
 		else:
-			res = self.execute(sql, vals)
+			res = self.execute(tname, 'select', sql, vals)
 		return res.fetchone()['count']
 
