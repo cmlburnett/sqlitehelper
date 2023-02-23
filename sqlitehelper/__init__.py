@@ -238,7 +238,7 @@ class SH:
 
 		# datetime objects are stored pretty much in full as ASCII strings
 		if 'datetime' not in cons:
-			sqlite3.register_adapter(datetime.datetime, lambda dt: dt.strftime("%Y-%m-%d %H:%M:%S.%f").encode('ascii'))
+			sqlite3.register_adapter(datetime.datetime, lambda dt: dt.strftime("%Y-%m-%d %H:%M:%S.%f"))
 			sqlite3.register_converter("datetime", lambda txt: datetime.datetime.strptime(txt.decode('ascii'), "%Y-%m-%d %H:%M:%S.%f"))
 
 		# As strings representing JSON are still just str() objects, no adapter can be defined
