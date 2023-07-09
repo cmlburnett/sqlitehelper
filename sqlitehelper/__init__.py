@@ -250,8 +250,15 @@ class SH:
 
 		# datetime objects are stored pretty much in full as ASCII strings
 		if 'datetime' not in cons:
-			sqlite3.register_adapter(datetime.datetime, lambda dt: dt.strftime("%Y-%m-%d %H:%M:%S.%f"))
-			sqlite3.register_converter("datetime", lambda txt: datetime.datetime.strptime(txt.decode('ascii'), "%Y-%m-%d %H:%M:%S.%f"))
+			def dtconverter(txt):
+				txt = txt.strip()
+				try:
+					return datetime.datetime.strptime(txt.decode('ascii'), "%Y-%m-%d %H:%M:%S.%f %z")
+				except:
+					return datetime.datetime.strptime(txt.decode('ascii'), "%Y-%m-%d %H:%M:%S.%f")
+
+			sqlite3.register_adapter(datetime.datetime, lambda dt: dt.strftime("%Y-%m-%d %H:%M:%S.%f %z"))
+			sqlite3.register_converter("datetime", dtconverter)
 
 		# As strings representing JSON are still just str() objects, no adapter can be defined
 		if 'json' not in cons:
@@ -292,7 +299,6 @@ class SH:
 				subo = o(self, None, self.execute, self.select, self.select_one, self.insert, self.update, self.delete, self.num_rows)
 				setattr(self, subo.DBName, subo)
 				finalschema.append( subo.BuildSchema() )
-
 
 			elif hasattr(self, o.DBName):
 				# Prefix with db_ is table name is already chosen (eg, select, insert)
@@ -491,6 +497,8 @@ class SH:
 		"""
 
 		res = self.select(tname, cols, where, vals, order)
+		if res is None:
+			return None
 		return res.fetchone()
 
 	def insert(self, tname, **cols):
