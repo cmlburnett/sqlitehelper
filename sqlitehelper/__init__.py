@@ -197,6 +197,18 @@ class SH_sub:
 					else:
 						setattr(self, fname, getbycolumn(self, col.DBName))
 
+	def HasDBColumnName(self, k):
+		"""Checks if tables has a column named @k"""
+		for col in self._schema.Cols:
+			if col.DBName == k:
+				return True
+
+		return False
+
+	def GetDBColumnNames(self):
+		"""Returns a list of strings of the column names"""
+		return [col.DBName for col in self._schema.Cols]
+
 	def setup(self, db):
 		""" Called after all SH_sub classes are created."""
 		pass
