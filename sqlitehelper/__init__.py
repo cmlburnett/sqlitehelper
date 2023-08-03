@@ -374,7 +374,7 @@ class SH:
 		if not hasattr(self, '__schema__'):
 			raise Exception("Class %s doesn't have __schema__ attribute")
 
-		ret = self.execute(None, 'schema', "select name from sqlite_schema where type='table'")
+		ret = self.execute(None, 'schema', "select name from sqlite_master where type='table'")
 		tnames = [_['name'] for _ in ret]
 
 		for o in self.__schema__:
