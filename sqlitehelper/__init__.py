@@ -20,6 +20,9 @@ import uuid
 
 __all__ = ['SH', 'DBTable', 'DBCol', 'DBColUnique', 'DBColROWID']
 
+# Serialized permits full sharing of connections and cursors between threads
+sqlite3.threadsafety = 3
+
 
 class DBTable:
 	"""
