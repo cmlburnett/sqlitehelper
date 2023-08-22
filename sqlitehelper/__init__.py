@@ -457,6 +457,8 @@ class SH:
 		# Try up to 10 times if locked (probably from another process)
 		cnt = 0
 		while cnt < 10:
+			if self.DB is None:
+				self.reopen()
 			try:
 				return self.DB.execute(sql, vals)
 			except sqlite3.OperationalError as e:
