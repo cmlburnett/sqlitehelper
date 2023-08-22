@@ -348,7 +348,7 @@ class SH:
 			raise Exception("Already opened to database '%s'" % self.Filename)
 
 		# Open database
-		self._db = sqlite3.connect(self.Filename, detect_types=sqlite3.PARSE_DECLTYPES)
+		self._db = sqlite3.connect(self.Filename, detect_types=sqlite3.PARSE_DECLTYPES, check_same_thread=False)
 
 		# Change row factory (default is an indexable row by column name)
 		if rowfactory:
