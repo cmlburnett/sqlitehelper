@@ -219,8 +219,8 @@ class SH_sub:
 	def select(self, cols, where=None, vals=None, order=None):
 		return self._select(self.DBName, cols, where, vals, order)
 
-	def select_one(self, cols, where=None, vals=None):
-		return self._select_one(self.DBName, cols, where, vals)
+	def select_one(self, cols, where=None, vals=None, order=None):
+		return self._select_one(self.DBName, cols, where, vals, order)
 
 	def insert(self, **cols):
 		return self._insert(self.DBName, **cols)
