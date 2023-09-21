@@ -10,6 +10,8 @@ For SQL queries used, set the logging library level to DEBUG.
 
 import sqlite3
 import logging
+import threading
+import traceback
 import time
 
 # For converters/adapters
@@ -348,7 +350,7 @@ class SH:
 			raise Exception("Already opened to database '%s'" % self.Filename)
 
 		# Open database
-		self._db = sqlite3.connect(self.Filename, detect_types=sqlite3.PARSE_DECLTYPES, check_same_thread=False)
+		self._db = sqlite3.connect(self.Filename, detect_types=sqlite3.PARSE_DECLTYPES, check_same_thread=False, isolation_level="DEFERRED")
 
 		# Change row factory (default is an indexable row by column name)
 		if rowfactory:
@@ -411,7 +413,7 @@ class SH:
 		"""
 
 		if self._cursor is None:
-			logging.debug("SH: BEGIN")
+			logging.debug("SH: BEGIN (thread %s)" % threading.current_thread().name)
 			self._cursor = self._db.cursor()
 		else:
 			raise Exception("Already in a transaction")
@@ -422,11 +424,32 @@ class SH:
 		"""
 
 		if self._cursor is None:
-			pass
+			raise Exception("Cannot commit, no begin() issued")
 		else:
-			logging.debug("SH: COMMIT")
-			self._db.commit()
-			self._cursor = None
+			logging.debug("SH: COMMIT (thread %s)" % threading.current_thread().name)
+
+			# Try up to 10 times if locked (probably from another process)
+			cnt = 0
+			while cnt < 10:
+				if self.DB is None:
+					print("Reopen database")
+					self.reopen()
+				try:
+					self._cursor.connection.commit()
+					self._cursor = None
+					return
+				except sqlite3.OperationalError as e:
+					if 'database is locked' in e.args[0]:
+						logging.error("Locked database in COMMIT count %d (thread %s)" % (cnt, threading.current_thread().name))
+
+						time.sleep(cnt)
+						cnt += 1
+						continue
+					else:
+						# Some other error
+						print("Some other database error")
+						traceback.print_exc()
+						raise
 
 	def rollback(self):
 		"""
@@ -434,11 +457,32 @@ class SH:
 		"""
 
 		if self._cursor is None:
-			pass
+			raise Exception("Cannot rollback, no begin() issued")
 		else:
-			logging.debug("SH: ROLLBACK")
-			self._db.rollback()
-			self._cursor = None
+			logging.debug("SH: ROLLBACK (thread %s)" % threading.current_thread().name)
+
+			# Try up to 10 times if locked (probably from another process)
+			cnt = 0
+			while cnt < 10:
+				if self.DB is None:
+					print("Reopen database")
+					self.reopen()
+				try:
+					self._cursor.connection.rollback()
+					self._cursor = None
+					return
+				except sqlite3.OperationalError as e:
+					if 'database is locked' in e.args[0]:
+						logging.error("Locked database in ROLLBACK count %d (thread %s)" % (cnt, threading.current_thread().name))
+
+						time.sleep(cnt)
+						cnt += 1
+						continue
+					else:
+						# Some other error
+						print("Some other database error")
+						traceback.print_exc()
+						raise
 
 
 
@@ -460,18 +504,21 @@ class SH:
 		cnt = 0
 		while cnt < 10:
 			if self.DB is None:
+				print("Reopen database")
 				self.reopen()
 			try:
 				return self.DB.execute(sql, vals)
 			except sqlite3.OperationalError as e:
 				if 'database is locked' in e.args[0]:
-					logging.error("Locked database count %d" % cnt)
+					logging.error("Locked database count %d (thread %s)" % (cnt, threading.current_thread().name))
 
 					time.sleep(cnt)
 					cnt += 1
 					continue
 				else:
 					# Some other error
+					print("Some other database error")
+					traceback.print_exc()
 					raise
 
 	def select(self, tname, cols, where=None, vals=None, order=None):
