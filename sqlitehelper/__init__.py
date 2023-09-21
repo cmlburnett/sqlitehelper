@@ -402,6 +402,8 @@ class SH:
 				raise TypeError("Unrecognized schema type '%s'" % type(o))
 
 
+	def InTransaction(self):
+		return self._cursor is not None
 
 	def begin(self):
 		"""
@@ -532,6 +534,9 @@ class SH:
 		All values are ultimately passed in using ? style parameters
 		"""
 
+		if not self.InTransaction():
+			raise Exception("Attempting to insert not in a transaction")
+
 		names = []
 		vals = []
 
@@ -563,6 +568,9 @@ class SH:
 
 		All values are ultimately passed in using ? style parameters
 		"""
+
+		if not self.InTransaction():
+			raise Exception("Attempting to update not in a transaction")
 
 		s_cols = []
 		s_vals = []
@@ -601,6 +609,9 @@ class SH:
 		@where is a dictionary of column name/value pairs to limit which rows are updated (ie, the WHERE clause)
 			{"rowid": 10, 'name': 'John'} -> "`rowid`=? AND `name`=?" and [10,'John'] are passed as values to execute()
 		"""
+
+		if not self.InTransaction():
+			raise Exception("Attempting to delete not in a transaction")
 
 		w_cols = []
 		w_vals = []
