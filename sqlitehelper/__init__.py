@@ -374,35 +374,40 @@ class SH:
 		Creates the database schema in the named database
 		"""
 
+		ret = self.execute(None, 'schema', "select name from sqlite_master where type='table'")
+		tnames = [_['name'] for _ in ret]
+
+		sql = self.FormatDatabaseSchema()
+		for dbname,row in sql:
+				# Table already exists, skip it
+			if dbname in tnames: continue
+
+			self.begin()
+			self.execute(None, 'schema', row)
+			self.commit()
+
+
+	def FormatDatabaseSchema(self):
+		"""Generate SQL as (table name, create table sql) 2-tuples as a list"""
+
 		logging.debug("SH: Making schema")
+
+		ret = []
 
 		if not hasattr(self, '__schema__'):
 			raise Exception("Class %s doesn't have __schema__ attribute")
 
-		ret = self.execute(None, 'schema', "select name from sqlite_master where type='table'")
-		tnames = [_['name'] for _ in ret]
-
 		for o in self.__schema__:
 			if isinstance(o, DBTable):
-				# Table already exists, skip it
-				if o.DBName in tnames: continue
-
-				self.begin()
-				self.execute(None, 'schema', o.SQL)
-				self.commit()
+				ret.append( (o.DBName, o.SQL) )
 			elif isinstance(o, type) and issubclass(o, SH_sub):
 				subo = o(self, None, self.execute, self.select, self.select_one, self.insert, self.update, self.delete, self.num_rows)
-				# Table already exists, skip it
-				if subo.DBName in tnames: continue
-
 				sql = subo.BuildSchema().SQL
-
-				self.begin()
-				self.execute(None, 'schema', sql)
-				self.commit()
+				ret.append( (subo.DBName, sql) )
 			else:
 				raise TypeError("Unrecognized schema type '%s'" % type(o))
 
+		return ret
 
 	def InTransaction(self):
 		return self._cursor is not None
