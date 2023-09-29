@@ -8,6 +8,7 @@ See README for further details of an example
 For SQL queries used, set the logging library level to DEBUG.
 """
 
+import contextlib
 import sqlite3
 import logging
 import threading
@@ -699,4 +700,16 @@ class SH:
 		else:
 			res = self.execute(tname, 'select', sql, vals)
 		return res.fetchone()['count']
+
+	@contextlib.contextmanager
+	def transaction(self):
+		try:
+			self.begin()
+			yield
+			self.commit()
+		except:
+			print("Caught exception in transaction, rolling back")
+			traceback.print_exc()
+			self.rollback()
+			raise
 
