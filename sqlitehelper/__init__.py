@@ -331,6 +331,10 @@ class SH:
 	@property
 	def DB(self): return self._db
 
+	@property
+	def Tables(self):
+		for x in self._objects:
+			yield x
 
 	def reopen(self):
 		#self.close()
