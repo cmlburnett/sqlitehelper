@@ -442,7 +442,7 @@ class SH:
 			cnt = 0
 			while cnt < 10:
 				if self.DB is None:
-					print("Reopen database")
+					logging.info("Reopen database")
 					self.reopen()
 				try:
 					self._cursor.connection.commit()
@@ -475,7 +475,7 @@ class SH:
 			cnt = 0
 			while cnt < 10:
 				if self.DB is None:
-					print("Reopen database")
+					logging.info("Reopen database")
 					self.reopen()
 				try:
 					self._cursor.connection.rollback()
@@ -514,7 +514,7 @@ class SH:
 		cnt = 0
 		while cnt < 10:
 			if self.DB is None:
-				print("Reopen database")
+				logging.info("Reopen database")
 				self.reopen()
 			try:
 				return self.DB.execute(sql, vals)
